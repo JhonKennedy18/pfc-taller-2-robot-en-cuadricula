@@ -1,279 +1,182 @@
-# Ejemplo de informe de corrección
+# Informe de corrección — Taller 2: un robot en la cuadrícula
 
 Fundamentos de Programación Funcional y Concurrente.
-Documento realizado por el docente Juan Francisco Díaz.
 
-## 1. Argumentar la corrección de programas recursivos
+Para cada función se define qué debe calcular (su especificación) con notación
+matemática, y se demuestra que el programa en Scala la cumple. Como `Orden` es
+un tipo definido recursivamente, las demostraciones sobre órdenes usan
+inducción estructural, igual que en el ejemplo del factorial.
 
-Sea $f : A \to B$ una función, y $A$ un conjunto definido recursivamente
-(recordar la definición de Matemáticas Discretas I), como por ejemplo los
-naturales o las listas.
+## Punto 1: `girar`
 
-Sea $P_f$ un programa recursivo (lineal o en árbol) desarrollado en Scala (o en
-cualquier lenguaje de programación) hecho para calcular $f$:
+### Especificación
 
-```scala
-def Pf(a: A): B = { // Pf recibe a de tipo A, y devuelve f(a) de tipo B
-  ...
-}
-```
-
-¿Cómo argumentar que $P_f(a)$ siempre devuelve $f(a)$ como respuesta? Es decir,
-¿cómo argumentar que $P_f$ es correcto con respecto a su especificación?
-
-La respuesta es sencilla: demostrando el siguiente teorema.
+Se numeran las direcciones en el sentido de las agujas del reloj:
 
 ```math
-\forall a \in A : P_f(a) == f(a)
+\text{Norte} = 0,\quad \text{Este} = 1,\quad \text{Sur} = 2,\quad \text{Oeste} = 3
 ```
 
-Cuando uno tiene que demostrar que algo se cumple para todos los elementos de
-un conjunto definido recursivamente, es natural usar inducción estructural. En
-términos prácticos, esto significa demostrar que:
-
-- Para cada valor básico $a$ de $A$, se tiene que $P_f(a) == f(a)$.
-- Para cada valor $a \in A$ construido recursivamente a partir de otro(s)
-  valor(es) $a' \in A$, se tiene que
-  $P_f(a') == f(a') \rightarrow P_f(a) == f(a)$. (Esta es la hipótesis de
-  inducción).
-
-### Ejemplo: factorial recursivo
-
-Sea $f : \mathbb{N} \to \mathbb{N}$ la función que calcula el factorial de un
-número natural, es decir, $f(n) = n!$. Y sea $P_f$ el siguiente programa en
-Scala:
-
-```scala
-def Pf(n: Int): Int = { // Pf recibe n de tipo Int, y devuelve n! de tipo Int
-  if (n == 0) 1 else n * Pf(n - 1)
-}
-```
-
-Vamos a demostrar que $\forall n \in \mathbb{N} : P_f(n) == n!$
-
-**Caso base:** $n = 0$
+y se asigna a cada sentido un desplazamiento: $\delta(\text{Derecha}) = +1$ y
+$\delta(\text{Izquierda}) = -1$. Girar noventa grados es avanzar $\delta(s)$
+posiciones en ese ciclo de cuatro, así que la función que se quiere calcular es
 
 ```math
-P_f(0) \rightarrow \text{if } (0 == 0)\ 1 \text{ else } 0 \ast P_f(-1) \rightarrow 1
+g(d, s) = (\,\text{idx}(d) + \delta(s)\,) \bmod 4
 ```
 
-Por otro lado, $f(0) = 0! = 1$. Entonces $P_f(0) == f(0)$.
+### Teorema
 
-**Caso de inducción:** $n = k + 1$, $k \geq 0$. Hay que demostrar:
-$P_f(k) == f(k) \rightarrow P_f(k + 1) == f(k + 1)$
+Para toda dirección $d$ y todo sentido $s$, `girar(d, s)` es la dirección con
+índice $g(d, s)$.
+
+### Demostración
+
+`Direccion` y `Sentido` no son recursivos: tienen un número finito de valores
+y no hace falta inducción. Basta con revisar los $4 \times 2 = 8$ casos, que
+son exactamente los casos del `match`:
+
+| $d$ | $s$ | $g(d, s)$ | Valor de `girar(d, s)` | ¿Coinciden? |
+|---|---|---|---|---|
+| Norte (0) | Derecha | $(0+1) \bmod 4 = 1$ = Este | `Este` | sí |
+| Este (1) | Derecha | $(1+1) \bmod 4 = 2$ = Sur | `Sur` | sí |
+| Sur (2) | Derecha | $(2+1) \bmod 4 = 3$ = Oeste | `Oeste` | sí |
+| Oeste (3) | Derecha | $(3+1) \bmod 4 = 0$ = Norte | `Norte` | sí |
+| Norte (0) | Izquierda | $(0-1) \bmod 4 = 3$ = Oeste | `Oeste` | sí |
+| Oeste (3) | Izquierda | $(3-1) \bmod 4 = 2$ = Sur | `Sur` | sí |
+| Sur (2) | Izquierda | $(2-1) \bmod 4 = 1$ = Este | `Este` | sí |
+| Este (1) | Izquierda | $(1-1) \bmod 4 = 0$ = Norte | `Norte` | sí |
+
+Como `Direccion` y `Sentido` son `sealed`, estas 8 parejas son todas las
+posibles, así que el `match` es exhaustivo. $\blacksquare$
+
+### Consecuencias que se usan después
+
+De $g$ se obtienen dos propiedades que las pruebas comprueban:
 
 ```math
-P_f(k+1) \rightarrow \text{if } (k+1 == 0)\ 1 \text{ else } (k+1) \ast P_f(k) \rightarrow (k+1) \ast P_f(k)
-```
-
-Usando la hipótesis de inducción (HI):
-
-```math
-\rightarrow (k+1) \ast k! = (k+1)!
-```
-
-Por lo tanto, $P_f(k + 1) == f(k + 1)$.
-
-Concluimos por inducción que $\forall n \in \mathbb{N} : P_f(n) == n!$
-
-### Ejemplo: el máximo de una lista
-
-Sea $f : \text{List}[\mathbb{N}] \to \mathbb{N}$ la función que calcula el
-máximo de una lista de enteros positivos, no vacía. Y sea $P_f$ el siguiente
-programa en Scala:
-
-```scala
-def maxLin(l: List[Int]): Int = {
-  if (l.tail.isEmpty) l.head
-  else math.max(maxLin(l.tail), l.head)
-}
-```
-
-Demostraremos que:
-
-```math
-\forall n \in \mathbb{N} \setminus \{0\} : P_f(\text{List}(a_1, a_2, \ldots, a_n)) == f(\text{List}(a_1, a_2, \ldots, a_n))
-```
-
-**Caso base:** $n = 1$
-
-```math
-P_f(\text{List}(a_1)) \rightarrow \text{if } \text{List}(a_1).\text{tail.isEmpty then } \text{List}(a_1).\text{head else } \ldots \rightarrow \text{List}(a_1).\text{head} \rightarrow a_1
-```
-
-Por otro lado, $f(\text{List}(a_1)) = a_1$. Entonces
-$P_f(\text{List}(a_1)) == f(\text{List}(a_1))$.
-
-**Caso de inducción:** $n = k + 1$, $k \geq 1$. Se debe demostrar:
-
-```math
-P_f(\text{List}(b_1, b_2, \ldots, b_k)) == f(\text{List}(b_1, b_2, \ldots, b_k)) \rightarrow P_f(\text{List}(a_1, a_2, \ldots, a_{k+1})) == f(\text{List}(a_1, a_2, \ldots, a_{k+1}))
-```
-
-Empecemos por calcular qué devuelve $P_f$ usando el modelo de sustitución:
-
-```math
-P_f(L) \rightarrow \text{if } L.\text{tail.isEmpty then } L.\text{head else math.max}(P_f(L.\text{tail}), L.\text{head})
+g(g(d, \text{Derecha}), \text{Izquierda}) = (\text{idx}(d) + 1 - 1) \bmod 4 = \text{idx}(d)
 ```
 
 ```math
-\rightarrow \text{math.max}(P_f(\text{List}(a_2, \ldots, a_{k+1})), a_1)
+4 \cdot \delta(s) \equiv 0 \pmod 4
 ```
 
-Sea $b = P_f(\text{List}(a_2, \ldots, a_{k+1}))$; por la hipótesis de
-inducción, $b = f(\text{List}(a_2, \ldots, a_{k+1}))$. Hay dos posibilidades:
+Un giro y su contrario se cancelan, y cuatro giros al mismo lado devuelven la
+dirección original.
 
-- Si $\text{math.max}(b, a_1) = b$, entonces $b \geq a_1$ y
- $b == f(\text{List}(a_1, a_2, \ldots, a_{k+1}))$.
-- Si $\text{math.max}(b, a_1) = a_1$, entonces $a_1 \geq b$ y
- $a_1 == f(\text{List}(a_1, a_2, \ldots, a_{k+1}))$.
+## Punto 2: `ejecutar`
 
-Por lo tanto, $P_f(L) == f(L)$.
+### Especificación
 
-Concluimos por inducción que:
+Cada dirección $d$ tiene un vector de avance $v(d) = (v_x, v_y)$:
 
 ```math
-\forall n \in \mathbb{N} \setminus \{0\} : P_f(\text{List}(a_1, a_2, \ldots, a_n)) == f(\text{List}(a_1, a_2, \ldots, a_n))
+v(\text{Norte}) = (0, 1),\quad v(\text{Este}) = (1, 0),\quad v(\text{Sur}) = (0, -1),\quad v(\text{Oeste}) = (-1, 0)
 ```
 
-## 2. Argumentar la corrección de programas iterativos
-
-Para argumentar la corrección de programas iterativos, se debe formalizar cómo
-es la iteración. Esto implica definir:
-
-- Cómo se representa un estado de la iteración, $s$.
-- Cuál es el estado inicial, $s_0$.
-- Cuál es el estado final (o cómo se reconoce que un estado es final): $s_f$.
-- Qué condición (o predicado) cumple todo estado: $\text{Inv}(s)$ (invariante
-  de la iteración).
-- El mecanismo para pasar de un estado al siguiente: $\text{transformar}(s)$.
-  Si $s_i$ es el estado $i$, entonces $\text{transformar}(s_i) = s_{i+1}$.
-
-Un programa iterativo tiene la siguiente forma:
-
-```scala
-def Pf(a: A): B = { // Pf recibe a de tipo A, y devuelve f(a) de tipo B
-  def Pf_iter(s: Estado): B =
-    if (esFinal(s)) respuesta(s) else Pf_iter(transformar(s))
-  Pf_iter(s0)
-}
-```
-
-Demostración de corrección:
-
-- $\text{Inv}(s_0)$: el estado inicial cumple la condición invariante.
-- Si $(s_i \neq s_f \land \text{Inv}(s_i)) \rightarrow \text{Inv}(\text{transformar}(s_i))$:
-  el nuevo estado cumple la condición invariante si el estado anterior la
-  cumplía.
-- De lo anterior se concluye $\text{Inv}(s_f)$, es decir, el estado final
-  cumple la condición invariante. Luego,
-  $\text{Inv}(s_f) \rightarrow \text{respuesta}(s_f) == f(a)$.
-- Finalmente, demostrar que siempre se llega al estado final $s_f$. Esto
-  implica que
-  $P_f(a) == \text{iter}(s_0) == \text{respuesta}(s_f) == f(a)$.
-
-### Ejemplo: factorial iterativo
-
-Considere el siguiente programa iterativo en Scala para calcular la función
-factorial:
-
-```scala
-def Pf(n: Int): Int = { // Pf recibe n de tipo Int, y devuelve n! de tipo Int
-  def Pf_iter(i: Int, n: Int, ac: Int): Int =
-    if (i > n) ac else Pf_iter(i + 1, n, i * ac)
-  Pf_iter(1, n, 1)
-}
-```
-
-Este programa implementa el siguiente proceso iterativo:
-
-- Un estado $s = (i, n, ac)$.
-- El estado inicial es $s_0 = (1, n, 1)$.
-- $(i, n, ac)$ es final si $i > n$, o lo que es lo mismo, si $i = n + 1$.
-- La invariante de ciclo es
-  $\text{Inv}(i, n, ac) \equiv i \leq n + 1 \land ac = (i-1)!$.
-  La invariante de ciclo es una relación que SIEMPRE se cumple en el ciclo.
-- $\text{transformar}((i, n, ac)) = (i+1, n, i \ast ac)$.
-
-Ahora, demostramos los puntos mencionados:
-
-**1.** $\text{Inv}(s_0)$: el estado inicial cumple la condición invariante.
+Se define el significado $\mathcal{S}(o)$ de una orden $o$ como una función de
+estados en estados, con una ecuación por cada alternativa de `Orden`:
 
 ```math
-s_0 = (1, n, 1) \implies 1 \leq n + 1 \land 1 = 0!
-```
-
-**2.** La invariante se mantiene con la transformación de estados,
-$(s_i \neq s_f \land \text{Inv}(s_i)) \rightarrow \text{Inv}(\text{transformar}(s_i))$:
-
-1. Primer cambio, $i = i + 1$, lo que implica $ac = ((i+1) - 1)! = i!$.
-2. Segundo cambio, $ac = i \ast ac$, entonces $ac = (i - 1)! \ast i = i!$.
-3. Como se puede ver en ambos cambios indicados en la transformación, la
-   invariante se mantiene.
-
-**3.** $\text{Inv}(s_f) \rightarrow \text{respuesta}(s_f) == f(a)$
-
-```math
-(n + 1 \leq n + 1) \land ac = ((n+1)-1)! \rightarrow ac == n!
-```
-
-**4.** En cada paso, la componente $i$ del estado incrementa, acercándose a $n+1$.
-Después de $n$ iteraciones, se alcanza $n+1$.
-
-Esto implica que $P_f(n) == \text{iter}(1, n, 1) == n!$
-
-### Ejemplo: el máximo de una lista
-
-Se desea calcular el máximo de una lista de enteros positivos, no vacía. Sea
-$f : \text{List}[\mathbb{N}] \to \mathbb{N}$ la función que calcula ese valor.
-Y sea $P_f$ el siguiente programa en Scala:
-
-```scala
-def maxIt(l: List[Int]): Int = {
-  def maxAux(max: Int, l: List[Int]): Int = {
-    if (l.isEmpty) max
-    else maxAux(math.max(max, l.head), l.tail)
-  }
-  maxAux(l.head, l.tail)
-}
-```
-
-Este programa implementa el siguiente proceso iterativo:
-
-- Un estado $s = (max, l)$ donde $l = \text{List}(a_i, a_{i+1}, \ldots, a_k)$
-  es una cola de $L$.
-- El estado inicial es
-  $s_0 = (L.\text{head}, L.\text{tail}) = (a_1, \text{List}(a_2, \ldots, a_k))$.
-- $s = (max, l)$ es final si $l$ es vacía.
-- $\text{Inv}(max, l) \equiv l = \text{List}(a_i, a_{i+1}, \ldots, a_k) \land max = f(\text{List}(a_1, a_2, \ldots, a_{i-1}))$.
-- $\text{transformar}((max, l)) = (nmax, l.\text{tail})$ donde $nmax = max$ si
-  $max \geq l.\text{head}$, y $nmax = l.\text{head}$ si no.
-
-Demostración de los puntos:
-
-**1.** $\text{Inv}(s_0)$: el estado inicial cumple la condición invariante.
-
-```math
-s_0 = (a_1, \text{List}(a_2, \ldots, a_k)) \implies a_1 = f(\text{List}(a_1))
-```
-
-**2.** $(s_i \neq s_f \land \text{Inv}(s_i)) \rightarrow \text{Inv}(\text{transformar}(s_i))$
-
-```math
-\neg\, l.\text{isEmpty} \land l = \text{List}(a_i, a_{i+1}, \ldots, a_k) \land max = f(\text{List}(a_1, a_2, \ldots, a_{i-1}))
+\mathcal{S}(\text{Avanzar}(n))(x, y, d) = (x + n \cdot v_x(d),\; y + n \cdot v_y(d),\; d)
 ```
 
 ```math
-\rightarrow l.\text{tail} = \text{List}(a_{i+1}, \ldots, a_k) \land nmax = f(\text{List}(a_1, \ldots, a_i))
+\mathcal{S}(\text{Girar}(s))(x, y, d) = (x,\; y,\; g(d, s))
 ```
-
-**3.** $\text{Inv}(s_f) \rightarrow \text{respuesta}(s_f) == f(a)$
 
 ```math
-\text{Inv}((max, \text{List}())) \rightarrow max = f(\text{List}(a_1, \ldots, a_k))
+\mathcal{S}(\text{Repetir}(k, o')) = \begin{cases} \mathrm{id} & \text{si } k \leq 0 \\ \mathcal{S}(o')^{k} & \text{si } k \geq 1 \end{cases}
 ```
 
-**4.** En cada paso, la lista $l$ se reduce, acercándose a ser vacía. Después de
-$k$ iteraciones, $l = \text{List}()$.
+```math
+\mathcal{S}(\text{Secuencia}(o_1, \ldots, o_m)) = \mathcal{S}(o_m) \circ \cdots \circ \mathcal{S}(o_1)
+```
 
-Esto implica que $P_f(L) == \text{maxAux}(L.\text{head}, L.\text{tail}) == f(L)$
+donde $f^{0} = \mathrm{id}$ y $f^{k} = f \circ f^{k-1}$, y la secuencia vacía ($m = 0$)
+es la identidad.
+
+### Teorema
+
+Para toda orden $o$ y todo estado $e$:
+
+```math
+\text{ejecutar}(e, o) = \mathcal{S}(o)(e)
+```
+
+### Demostración
+
+Por inducción estructural sobre $o$. Hay un caso base por cada orden básica y
+un caso de inducción por cada orden compuesta.
+
+**Caso base: $o = \text{Avanzar}(n)$.** Sea $e = (x, y, d)$. El programa hace
+`match` sobre `e.mira`:
+
+| $d$ | Programa devuelve | Con $v(d)$ la especificación da |
+|---|---|---|
+| Norte | $(x,\; y + n,\; d)$ | $(x + n \cdot 0,\; y + n \cdot 1,\; d)$ |
+| Sur | $(x,\; y - n,\; d)$ | $(x + n \cdot 0,\; y + n \cdot (-1),\; d)$ |
+| Este | $(x + n,\; y,\; d)$ | $(x + n \cdot 1,\; y + n \cdot 0,\; d)$ |
+| Oeste | $(x - n,\; y,\; d)$ | $(x + n \cdot (-1),\; y + n \cdot 0,\; d)$ |
+
+En los cuatro casos coinciden, y esto vale también para $n$ negativo o cero.
+
+**Caso base: $o = \text{Girar}(s)$.** El programa devuelve
+`e.copy(mira = girar(e.mira, s))`, es decir $(x, y, \text{girar}(d, s))$. Por el
+teorema del punto 1, $\text{girar}(d, s) = g(d, s)$, que es lo que dice la
+especificación.
+
+**Caso de inducción: $o = \text{Secuencia}(o_1, \ldots, o_m)$.** La hipótesis de
+inducción (HI) es que $\text{ejecutar}(e', o_i) = \mathcal{S}(o_i)(e')$ para
+todo $e'$ y todo $i$, porque cada $o_i$ es una orden más pequeña que la
+secuencia. Se demuestra por inducción sobre la longitud $m$ de la lista que
+
+```math
+\text{ordenes.foldLeft}(e)(\ldots) = \mathcal{S}(o_m)(\cdots \mathcal{S}(o_1)(e) \cdots)
+```
+
+- Si $m = 0$: `foldLeft` sobre la lista vacía devuelve $e$, y la composición
+  vacía es la identidad.
+- Si $m \geq 1$: por la definición de `foldLeft`,
+  $\text{foldLeft}(e)(o_1 :: \text{resto}) = \text{foldLeft}(\text{ejecutar}(e, o_1))(\text{resto})$.
+  Por la HI, $\text{ejecutar}(e, o_1) = \mathcal{S}(o_1)(e)$. Por la hipótesis
+  sobre la longitud, `resto` (de longitud $m - 1$) aplicado a ese estado da
+  $\mathcal{S}(o_m)(\cdots \mathcal{S}(o_2)(\mathcal{S}(o_1)(e)) \cdots)$.
+
+Esto es $\mathcal{S}(o_m) \circ \cdots \circ \mathcal{S}(o_1)$ aplicada a $e$.
+
+**Caso de inducción: $o = \text{Repetir}(k, o')$.** La HI es
+$\text{ejecutar}(e', o') = \mathcal{S}(o')(e')$ para todo $e'$. La llamada
+recursiva del programa es sobre `Repetir(k - 1, o')`, que no es una subparte de
+la orden, así que se hace una segunda inducción sobre $k$.
+
+- Si $k \leq 0$: el programa devuelve $e$, y $\mathcal{S}(o) = \mathrm{id}$.
+- Si $k \geq 1$: el programa calcula
+  $\text{ejecutar}(\text{ejecutar}(e, o'), \text{Repetir}(k-1, o'))$.
+  Por la HI, el estado interior es $\mathcal{S}(o')(e)$. Por la hipótesis sobre
+  $k - 1$, el llamado externo da $\mathcal{S}(o')^{k-1}(\mathcal{S}(o')(e))$,
+  que es $\mathcal{S}(o')^{k}(e)$.
+
+Con los cuatro casos queda demostrado que
+$\forall o, e : \text{ejecutar}(e, o) = \mathcal{S}(o)(e)$. $\blacksquare$
+
+### Terminación
+
+En cada llamado recursivo la entrada se hace estrictamente menor: en
+`Secuencia` y `Repetir` la orden contenida es una subparte, y en `Repetir` el
+llamado sobre `Repetir(k - 1, o')` baja $k$ hasta llegar a $k \leq 0$, donde la
+recursión se corta. Por eso `ejecutar` siempre termina.
+
+### Corolario: una secuencia equivale a ejecutar sus partes
+
+Del caso de `Secuencia` con $m = 2$ se obtiene, para todo $e$:
+
+```math
+\text{ejecutar}(e, \text{Secuencia}(o_1, o_2)) = \text{ejecutar}(\text{ejecutar}(e, o_1), o_2)
+```
+
+Ejecutar una orden compuesta es ejecutar una parte y después la otra sobre el
+estado que dejó la primera. Este hecho es el que se usa para justificar
+`componer` en el punto 4 y las reglas de `simplificar` en el punto 5.
+ 
