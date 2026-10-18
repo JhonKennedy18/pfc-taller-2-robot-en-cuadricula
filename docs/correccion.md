@@ -179,3 +179,4 @@ Del caso de `Secuencia` con $m = 2$ se obtiene, para todo $e$:
 Ejecutar una orden compuesta es ejecutar una parte y después la otra sobre el
 estado que dejó la primera. Este hecho es el que se usa para justificar
 `componer` en el punto 4 y las reglas de `simplificar` en el punto 5.
+ 
