@@ -49,24 +49,72 @@ class RobotCuadricula {
   // Punto 3 -------------------------------------------------------------------
 
   /** Cuántos Avanzar y Girar llega a ejecutar la orden, contando repeticiones. */
-  def cuantasBasicas(o: Orden): Int = ???
+  def cuantasBasicas(o: Orden): Int = o match {
+    case Avanzar(_) => 1
+    case Girar(_) => 1
+    case Repetir(veces, orden) =>
+      if (veces <= 0) 0 else veces * cuantasBasicas(orden)
+    case Secuencia(ordenes) =>
+      @annotation.tailrec
+      def suma(pendientes: List[Orden], acum: Int): Int = pendientes match {
+        case Nil => acum
+        case h :: t => suma(t, acum + cuantasBasicas(h))
+      }
+      suma(ordenes, 0)
+  }
 
   /** Niveles de anidamiento: una básica tiene 1, una compuesta uno más que la más honda. */
-  def profundidad(o: Orden): Int = ???
+  def profundidad(o: Orden): Int = o match {
+    case Avanzar(_) => 1
+    case Girar(_) => 1
+    case Repetir(_, orden) => 1 + profundidad(orden)
+    case Secuencia(ordenes) =>
+      @annotation.tailrec
+      def maximo(pendientes: List[Orden], mejor: Int): Int = pendientes match {
+        case Nil => mejor
+        case h :: t =>
+          val ph = profundidad(h)
+          maximo(t, if (ph > mejor) ph else mejor)
+      }
+      1 + maximo(ordenes, 0)
+  }
 
   // Punto 4 -------------------------------------------------------------------
 
   /** La secuencia de las dos órdenes. */
-  def componer(o1: Orden, o2: Orden): Orden = ???
+  def componer(o1: Orden, o2: Orden): Orden = Secuencia(List(o1, o2))
 
   /** Currificada: fijados los pasos y el giro, queda una función de las veces. */
-  def rutina(pasos: Int)(giro: Sentido)(veces: Int): Orden = ???
+  def rutina(pasos: Int)(giro: Sentido)(veces: Int): Orden = {
+    val paso: Orden = Secuencia(List(Avanzar(pasos), Girar(giro)))
+    Repetir(veces, paso)
+  }
 
   /** La misma orden ejecutada sobre cada uno de los estados. */
-  def aplicarA(estados: List[Estado], o: Orden): List[Estado] = ???
+  def aplicarA(estados: List[Estado], o: Orden): List[Estado] = {
+    @annotation.tailrec
+    def recorre(pendientes: List[Estado], acum: List[Estado]): List[Estado] =
+      pendientes match {
+        case Nil => acum.reverse
+        case h :: t => recorre(t, ejecutar(h, o) :: acum)
+      }
+    recorre(estados, Nil)
+  }
 
   /** Reemplaza cada orden básica por f(orden), respetando la estructura de las compuestas. */
-  def transformar(o: Orden, f: Orden => Orden): Orden = ???
+  def transformar(o: Orden, f: Orden => Orden): Orden = o match {
+    case basica @ Avanzar(_)      => f(basica)
+    case basica @ Girar(_)        => f(basica)
+    case Repetir(veces, orden)    => Repetir(veces, transformar(orden, f))
+    case Secuencia(ordenes)       =>
+      @annotation.tailrec
+      def recorre(pendientes: List[Orden], acum: List[Orden]): List[Orden] =
+        pendientes match {
+          case Nil    => acum.reverse
+          case h :: t => recorre(t, transformar(h, f) :: acum)
+        }
+      Secuencia(recorre(ordenes, Nil))
+  }
 
   // Punto 5 -------------------------------------------------------------------
 
