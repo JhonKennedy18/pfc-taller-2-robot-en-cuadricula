@@ -364,3 +364,100 @@ $(0,0,N) \to (0,2,N) \to (0,2,E) \to (2,2,E) \to (2,2,S) \to (2,0,S) \to (2,0,O)
 | 3 | `Girar(Derecha)` | $(2,0,\text{Sur})$ | $(2,0,\text{Oeste})$ |
 | 4 | `Avanzar(2)` | $(2,0,\text{Oeste})$ | $(0,0,\text{Oeste})$ |
 | 4 | `Girar(Derecha)` | $(0,0,\text{Oeste})$ | $(0,0,\text{Norte})$ |
+
+
+## Punto 5 — `simplificar`
+
+`simplificar` **reescribe una orden en otra equivalente y más simple**, sin ejecutarla. Dos órdenes son equivalentes ($o \equiv o'$) si dejan al robot en el mismo estado final desde cualquier estado inicial.
+
+### Reglas de reducción
+
+| # | Regla | Reescritura |
+|---|---|---|
+| 1 | Órdenes nulas | `Avanzar(0)`, `Repetir(0, o)` → `Secuencia(Nil)` |
+| 2 | Fusión de avances | `..., Avanzar(a), Avanzar(b), ...` → `..., Avanzar(a + b), ...` |
+| 3 | Repetición unitaria | `Repetir(1, o)` → `o` |
+| 4 | Secuencia unitaria | `Secuencia(List(o))` → `o` |
+| 5 | Eliminar neutros | `..., Secuencia(Nil), ...` → `...` |
+
+### Cómo funciona
+
+```scala
+def simplificar(o: Orden): Orden = {
+  val s = paso(o)
+  if (s == o) o else simplificar(s)   // se repite hasta el punto fijo
+}
+
+private def paso(o: Orden): Orden = o match {
+  case Avanzar(0)                      => Secuencia(Nil)            // regla 1
+  case Repetir(veces, _) if veces <= 0 => Secuencia(Nil)            // regla 1
+  case Repetir(1, orden)               => paso(orden)               // regla 3
+  case Repetir(veces, orden)           => Repetir(veces, paso(orden))
+  case Secuencia(List(unica))          => paso(unica)               // regla 4
+  case Secuencia(ordenes)              => Secuencia(limpiar(ordenes.map(paso)))
+  case basica                          => basica
+}
+
+private def limpiar(ordenes: List[Orden]): List[Orden] = {
+  @annotation.tailrec
+  def recorre(pendientes: List[Orden], acum: List[Orden]): List[Orden] =
+    pendientes match {
+      case Nil                 => acum.reverse
+      case Secuencia(Nil) :: t => recorre(t, acum)                   // regla 5
+      case Avanzar(b) :: t     => acum match {
+        case Avanzar(a) :: resto => recorre(t, Avanzar(a + b) :: resto) // regla 2
+        case _                   => recorre(t, Avanzar(b) :: acum)
+      }
+      case h :: t              => recorre(t, h :: acum)
+    }
+  recorre(ordenes, Nil)
+}
+```
+
+1. `paso` aplica las reglas una vez, de arriba hacia abajo, simplificando también los hijos.
+2. `limpiar` recorre una secuencia y elimina neutros (regla 5) y fusiona avances contiguos (regla 2). Como en `aplicarA`, `acum` va en orden inverso y se corrige con `reverse`.
+3. `simplificar` repite `paso` hasta que ya no cambia nada (punto fijo).
+
+### Traza 1: fusión y neutros
+
+`simplificar(Secuencia(List(Avanzar(1), Avanzar(2), Secuencia(Nil))))`
+
+| Iteración | Orden antes | Regla aplicada | Orden después |
+|---|---|---|---|
+| 1 | `Secuencia(List(Avanzar(1), Avanzar(2), Secuencia(Nil)))` | 2 (fusión) y 5 (neutro) | `Secuencia(List(Avanzar(3)))` |
+| 2 | `Secuencia(List(Avanzar(3)))` | 4 (secuencia unitaria) | `Avanzar(3)` |
+| 3 | `Avanzar(3)` | ninguna (punto fijo) | `Avanzar(3)` |
+
+Comprobación desde `inicial = (0, 0, Norte)`:
+ambas órdenes dan `(0, 3, Norte)`.
+
+### Traza 2: repetición unitaria y orden nula
+
+`simplificar(Repetir(1, Secuencia(List(Avanzar(0), Girar(Derecha)))))`
+
+| Iteración | Orden antes | Regla aplicada | Orden después |
+|---|---|---|---|
+| 1 | `Repetir(1, Secuencia(List(Avanzar(0), Girar(Derecha))))` | 3, luego 1 y 5 dentro | `Secuencia(List(Girar(Derecha)))` |
+| 2 | `Secuencia(List(Girar(Derecha)))` | 4 | `Girar(Derecha)` |
+| 3 | `Girar(Derecha)` | ninguna (punto fijo) | `Girar(Derecha)` |
+
+Comprobación desde `inicial`: ambas dan `(0, 0, Este)`.
+
+### Corrección
+
+**Teorema.** Para toda orden $o$ y todo estado $e$:
+
+$
+\text{ejecutar}(e, \text{simplificar}(o)) = \text{ejecutar}(e, o)
+$
+
+**Demostración.** Basta ver que cada regla preserva `ejecutar`; después se procede por inducción estructural sobre $o$, porque `paso` solo reescribe subórdenes por otras equivalentes.
+
+* **Regla 1.** `Avanzar(0)` suma $0$ a una coordenada y deja `mira` igual, así que devuelve `e`. `Repetir(0, o)` devuelve `e` por el caso `veces <= 0`. `Secuencia(Nil)` devuelve `e` porque `foldLeft` sin elementos devuelve el valor inicial. Las tres son la identidad.
+* **Regla 2.** `Avanzar` no cambia `mira`, así que ambos avances ocurren en la misma dirección $d$. Con $(v_x, v_y)$ el vector unitario de $d$:
+
+
+que es el resultado de `Avanzar(a + b)`.
+* **Regla 3.** `ejecutar(e, Repetir(1, o))` ejecuta `o` una vez y luego `Repetir(0, o)`, que devuelve el estado sin cambios. Es igual a `ejecutar(e, o)`.
+* **Regla 4.** `foldLeft` sobre `List(o)` hace una sola ejecución: `ejecutar(e, o)`.
+* **Regla 5.** `Secuencia(Nil)` es la identidad, así que insertarla entre dos órdenes no cambia el resultado del `foldLeft`. 

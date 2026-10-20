@@ -119,5 +119,70 @@ class RobotCuadricula {
   // Punto 5 -------------------------------------------------------------------
 
   /** Una orden equivalente más corta, con las reglas del enunciado. */
-  def simplificar(o: Orden): Orden = ???
+  def simplificar(o: Orden): Orden ={
+
+    // 1. Simplificación previa de subórdenes (Bottom-Up)
+    val simplInterno: Orden = o match {
+      case Repetir(veces, orden) =>
+        Repetir(veces, simplificar(orden))
+
+      case Secuencia(ordenes) =>
+        // Simplifica cada suborden interna primero
+        @annotation.tailrec
+        def Mapear(pendientes: List[Orden], acum: List[Orden]): List[Orden] = pendientes match {
+          case Nil    => acum.reverse
+          case h :: t => Mapear(t, simplificar(h) :: acum)
+        }
+        val ordenesSimplificadas = Mapear(ordenes, Nil)
+
+        // Auxiliar recursiva para fusionar Avanzar seguidos y omitir neutros
+        def combinar(lista: List[Orden]): List[Orden] = lista match {
+          case Nil => Nil
+          case Secuencia(Nil) :: rest => combinar(rest)                           // Regla 5: omite neutros
+          case Avanzar(0) :: rest     => combinar(rest)                           // Regla 1/5: Avanzar(0) no hace nada
+          case Avanzar(a) :: Avanzar(b) :: rest => combinar(Avanzar(a + b) :: rest) // Regla 2: combina Avanzar seguidos
+          case h :: rest => h :: combinar(rest)
+        }
+
+        Secuencia(combinar(ordenesSimplificadas))
+
+      case otra => otra
+    }
+
+    // 2. Aplicación de las reglas sobre la estructura actual
+    val pasoPuntoFijo: Orden = simplInterno match {
+      // Regla 1: Avanzar(0) y Repetir(0, _) se convierten en Secuencia(Nil)
+      case Avanzar(0)    => Secuencia(Nil)
+      case Repetir(0, _) => Secuencia(Nil)
+
+        // Regla 3: Repetir(1, orden) se desenvuelve como orden
+      case Repetir(1, sub) => sub
+
+        // Regla 4: Secuencia de un solo elemento se convierte en ese elemento
+      case Secuencia(List(elem)) => elem
+
+        // Regla 5: Quitar órdenes neutras Secuencia(Nil)
+      case Secuencia(ordenes) =>
+        @annotation.tailrec
+        def filtrarNeutras(pendientes: List[Orden], acum: List[Orden]): List[Orden] = pendientes match {
+          case Nil => acum.reverse
+          case Secuencia(Nil) :: t => filtrarNeutras(t, acum)
+          case h :: t => filtrarNeutras(t, h :: acum)
+        }
+        val sinNeutras = filtrarNeutras(ordenes, Nil)
+        sinNeutras match {
+          case Nil         => Secuencia(Nil)
+          case List(unica) => unica // Aplica Regla 4 si al filtrar queda 1 sola
+          case varias      => Secuencia(varias)
+        }
+
+      case otra => otra
+    }
+
+    // 3. Proceso hasta punto fijo: si cambió, se vuelve a simplificar
+    if (pasoPuntoFijo == o) pasoPuntoFijo
+    else simplificar(pasoPuntoFijo)
+  }
+
+
 }

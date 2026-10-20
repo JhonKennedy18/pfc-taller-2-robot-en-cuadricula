@@ -336,5 +336,146 @@ análogo al de `aplicarA`: $\text{recorre}(\ell, acum) =
    problema, pero una orden anidada decenas de miles de niveles (no larga,
    sino *honda*) haría crecer la pila en `profundidad`, `cuantasBasicas` y
    `transformar`, porque la recursión sobre el árbol no es de cola.
- 
- 
+
+## Punto 5 — `simplificar`
+
+### Especificación
+
+Dos órdenes son equivalentes, $o \equiv o'$, si dejan al robot en el mismo
+estado final desde cualquier estado inicial. Por el teorema del Punto 2, esto
+es lo mismo que pedir igualdad de significados:
+
+$
+o \equiv o' \iff \mathcal{S}(o) = \mathcal{S}(o')
+$
+
+`simplificar` reescribe una orden con cinco reglas, cada una una equivalencia:
+
+$
+\begin{aligned}
+&\text{(R1)} && \text{Avanzar}(0) \equiv \text{Repetir}(k, o) \equiv \text{Secuencia}(\text{Nil}) && (k \le 0) \\
+&\text{(R2)} && [\ldots, \text{Avanzar}(a), \text{Avanzar}(b), \ldots] \equiv [\ldots, \text{Avanzar}(a+b), \ldots] && \text{(dentro de una } \text{Secuencia}) \\
+&\text{(R3)} && \text{Repetir}(1, o) \equiv o \\
+&\text{(R4)} && \text{Secuencia}([o]) \equiv o \\
+&\text{(R5)} && [\ldots, \text{Secuencia}(\text{Nil}), \ldots] \equiv [\ldots] && \text{(dentro de una } \text{Secuencia})
+\end{aligned}
+$
+
+La implementación tiene dos funciones auxiliares:
+
+* `paso(o)` aplica las reglas una vez, de arriba hacia abajo, también sobre los hijos.
+* `limpiar(l)` recorre la lista de una `Secuencia` aplicando R2 y R5 (usa un acumulador `acum` en orden inverso, como `aplicarA`).
+
+`simplificar(o)` repite `paso` hasta que `paso(o) == o` (punto fijo).
+
+### Teorema
+
+Para toda orden $o$ y todo estado $e$:
+
+$
+\text{ejecutar}(e, \text{simplificar}(o)) = \text{ejecutar}(e, o)
+$
+
+### Notación y lemas previos
+
+Para una lista de órdenes $\ell = [o_1, \ldots, o_m]$ se escribe
+
+$
+\mathcal{S}^*(\ell) = \mathcal{S}(o_m) \circ \cdots \circ \mathcal{S}(o_1)
+$
+
+de modo que $\mathcal{S}(\text{Secuencia}(\ell)) = \mathcal{S}^*(\ell)$ por la definición del Punto 2.
+
+**Lema 1 (composición).** Para listas $\ell_1, \ell_2$:
+$\mathcal{S}^*(\ell_1 \mathbin{+\!+} \ell_2) = \mathcal{S}^*(\ell_2) \circ \mathcal{S}^*(\ell_1)$.
+
+*Demostración.* Es asociatividad de la composición: los elementos de $\ell_1$
+se aplican primero y los de $\ell_2$ después. $\square$
+
+**Lema 2 (congruencia).** Si $\mathcal{S}(o) = \mathcal{S}(o')$, entonces
+sustituir $o$ por $o'$ dentro de una `Repetir` o de una `Secuencia` no cambia el
+significado.
+
+*Demostración.* $\mathcal{S}(\text{Repetir}(k, o)) = \mathcal{S}(o)^{k}$ solo
+depende de $\mathcal{S}(o)$, y $\mathcal{S}^*(\ell)$ es una composición de los
+$\mathcal{S}(o_i)$. $\square$
+
+**Lema 3 (las cinco reglas).** Cada regla preserva $\mathcal{S}$.
+
+* **R1.** $\mathcal{S}(\text{Avanzar}(0))(x, y, d) = (x + 0 \cdot v_x(d),\; y + 0 \cdot v_y(d),\; d) = (x, y, d)$, así que es $\mathrm{id}$.
+  $\mathcal{S}(\text{Repetir}(k, o)) = \mathrm{id}$ si $k \le 0$ por la especificación del Punto 2.
+  $\mathcal{S}(\text{Secuencia}(\text{Nil})) = \mathrm{id}$, porque la composición vacía es la identidad.
+* **R2.** `Avanzar` no cambia la dirección, así que ambos avances usan el mismo $d$:
+
+$
+  \begin{aligned}
+  \bigl(\mathcal{S}(\text{Avanzar}(b)) \circ \mathcal{S}(\text{Avanzar}(a))\bigr)(x, y, d)
+  &= \bigl(x + a\,v_x(d) + b\,v_x(d),\; y + a\,v_y(d) + b\,v_y(d),\; d\bigr) \\
+  &= \bigl(x + (a+b)\,v_x(d),\; y + (a+b)\,v_y(d),\; d\bigr) \\
+  &= \mathcal{S}(\text{Avanzar}(a+b))(x, y, d)
+  \end{aligned}
+$
+Por el Lema 1, la igualdad se mantiene con cualquier prefijo y sufijo en la lista.
+* **R3.** $\mathcal{S}(\text{Repetir}(1, o)) = \mathcal{S}(o)^1 = \mathcal{S}(o)$.
+* **R4.** $\mathcal{S}(\text{Secuencia}([o])) = \mathcal{S}(o)$, porque la composición de un solo elemento es ese elemento.
+* **R5.** Por R1, $\mathcal{S}(\text{Secuencia}(\text{Nil})) = \mathrm{id}$, y por el Lema 1
+  $\mathcal{S}^*(\ell_1 \mathbin{+\!+} [\text{Secuencia}(\text{Nil})] \mathbin{+\!+} \ell_2) = \mathcal{S}^*(\ell_2) \circ \mathrm{id} \circ \mathcal{S}^*(\ell_1) = \mathcal{S}^*(\ell_1 \mathbin{+\!+} \ell_2)$. $\square$
+
+**Lema 4 (`recorre`, dentro de `limpiar`).** Para toda lista `pendientes` $= p$ y toda lista `acum`:
+
+$
+\mathcal{S}^*\bigl(\text{recorre}(p, \text{acum})\bigr) = \mathcal{S}^*\bigl(\text{reverse}(\text{acum}) \mathbin{+\!+} p\bigr)
+$
+
+*Demostración por inducción sobre la longitud de $p$.*
+
+* **$p = \text{Nil}$.** Devuelve `acum.reverse`, que es $\text{reverse}(\text{acum}) \mathbin{+\!+} \text{Nil}$.
+* **$p = \text{Secuencia}(\text{Nil}) :: t$.** Llama a `recorre(t, acum)`. Por hipótesis de inducción (HI) da $\mathcal{S}^*(\text{reverse}(\text{acum}) \mathbin{+\!+} t)$, que por R5 es igual a $\mathcal{S}^*(\text{reverse}(\text{acum}) \mathbin{+\!+} \text{Secuencia}(\text{Nil}) :: t)$.
+* **$p = \text{Avanzar}(b) :: t$ y $\text{acum} = \text{Avanzar}(a) :: r$.** Llama a `recorre(t, Avanzar(a+b) :: r)`. Por HI da $\mathcal{S}^*(\text{reverse}(r) \mathbin{+\!+} [\text{Avanzar}(a+b)] \mathbin{+\!+} t)$. Como $\text{reverse}(\text{acum}) = \text{reverse}(r) \mathbin{+\!+} [\text{Avanzar}(a)]$, por R2 esto es $\mathcal{S}^*(\text{reverse}(\text{acum}) \mathbin{+\!+} p)$.
+* **Otros casos** (`Avanzar(b)` con `acum` vacío o con otra cabeza, o cualquier otra orden $h$). Se pasa $h$ a `acum` sin modificarla, y $\text{reverse}(h :: \text{acum}) \mathbin{+\!+} t = \text{reverse}(\text{acum}) \mathbin{+\!+} h :: t$. $\square$
+
+Con $\text{acum} = \text{Nil}$: $\mathcal{S}^*(\text{limpiar}(\ell)) = \mathcal{S}^*(\ell)$.
+
+### Demostración
+
+**Paso 1: `paso` preserva el significado.** Se demuestra
+$\mathcal{S}(\text{paso}(o)) = \mathcal{S}(o)$ por inducción estructural sobre $o$.
+
+* **$o = \text{Avanzar}(0)$ o $o = \text{Repetir}(k, \_)$ con $k \le 0$.** Devuelve `Secuencia(Nil)`, y por R1 ambos son $\mathrm{id}$.
+* **$o = \text{Repetir}(1, o')$.** Devuelve `paso(o')`. Por HI, $\mathcal{S}(\text{paso}(o')) = \mathcal{S}(o')$, y por R3 esto es $\mathcal{S}(o)$.
+* **$o = \text{Repetir}(k, o')$ con $k \ge 2$.** Devuelve `Repetir(k, paso(o'))`. Por HI y el Lema 2, tiene el mismo significado que $o$.
+* **$o = \text{Secuencia}([u])$.** Devuelve `paso(u)`. Por HI y R4, $\mathcal{S}(\text{paso}(u)) = \mathcal{S}(u) = \mathcal{S}(o)$.
+* **$o = \text{Secuencia}(\ell)$ en cualquier otro caso.** Devuelve `Secuencia(limpiar(ℓ.map(paso)))`. Por HI cada $\text{paso}(o_i)$ tiene el mismo significado que $o_i$, y por el Lema 2 $\mathcal{S}^*(\ell.\text{map}(\text{paso})) = \mathcal{S}^*(\ell)$. Por el Lema 4, `limpiar` tampoco lo cambia.
+* **Otra orden básica** (`Girar` o `Avanzar(n)` con $n \ne 0$). Devuelve $o$.
+
+**Paso 2: `simplificar` preserva el significado.** `simplificar(o)` es `paso` aplicado un número finito $r$ de veces (finito por la sección siguiente). Por el Paso 1 y por inducción sobre $r$:
+
+$
+\mathcal{S}(\text{simplificar}(o)) = \mathcal{S}(o)
+$
+
+**Paso 3: conclusión.** Por el teorema del Punto 2, `ejecutar` coincide con $\mathcal{S}$:
+
+$
+  \text{ejecutar}(e, \text{simplificar}(o)) = \mathcal{S}(\text{simplificar}(o))(e) = \mathcal{S}(o)(e) = \text{ejecutar}(e, o) \quad \blacksquare
+$
+
+### Terminación
+
+Sea $N(o)$ el número de nodos del árbol de $o$ y $Z(o)$ el número de nodos
+$\text{Avanzar}(0)$ que contiene. Se toma la medida $\mu(o) = (N(o), Z(o))$
+con orden lexicográfico. Si $\text{paso}(o) \ne o$, alguna regla se aplicó, y:
+
+* R1 sobre $\text{Repetir}(k, o')$, R2, R3, R4 y R5 reducen $N$ (ninguna lo aumenta).
+* R1 sobre $\text{Avanzar}(0)$ deja $N$ igual y reduce $Z$ en uno.
+* R2 puede crear un $\text{Avanzar}(0)$ (por ejemplo, $a = 1$, $b = -1$), pero lo hace reduciendo $N$, y el orden lexicográfico prioriza $N$.
+
+Así $\mu$ decrece estrictamente en cada iteración que cambia algo. Como $\mu$ toma valores en
+$\mathbb{N} \times \mathbb{N}$ con orden bien fundado, no hay cadenas infinitas, y
+`simplificar` llega a un punto fijo en un número finito de iteraciones.
+
+### Limitaciones
+
+1. **No es una forma normal completa.** Solo aplica las cinco reglas. `Repetir(2, Avanzar(1))` es equivalente a `Avanzar(2)`, y `Secuencia(List(Girar(Derecha), Girar(Izquierda)))` a `Secuencia(Nil)`, pero `simplificar` no los reconoce.
+2. **Desbordamiento de `Int` en la fusión.** La regla R2 calcula `a + b`; con valores cercanos a `Int.MaxValue` el resultado da la vuelta. El teorema vale para enteros matemáticos.
+3. **Profundidad de pila.** `paso` recorre el árbol con recursión que no es de cola; una orden muy *honda* (decenas de miles de niveles) puede desbordar la pila. Las listas largas sí se recorren sin problema con `limpiar`.
