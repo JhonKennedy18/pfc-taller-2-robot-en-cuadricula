@@ -229,5 +229,35 @@ class RobotCuadriculaPropiasTest extends AnyFunSuite {
   // Punto 5 -------------------------------------------------------------------
 
 
+  test("simplificar (propia): dos Avanzar seguidos dentro de una secuencia se suman") {
+    val entrada = Secuencia(List(Avanzar(3), Avanzar(2), Avanzar(-1)))
+    val esperado = Avanzar(4)
+    assert(simplificar(entrada) == esperado)
+  }
+
+  test("simplificar (propia): Repetir con cero y una iteracion se reducen") {
+    val entrada = Secuencia(List(Repetir(0, Avanzar(5)), Repetir(1, Girar(Derecha))))
+    val esperado = Girar(Derecha)
+    assert(simplificar(entrada) == esperado)
+  }
+
+  test("simplificar (propia): Secuencia de un solo elemento se convierte en ese elemento") {
+    val entrada = Secuencia(List(Girar(Izquierda)))
+    val esperado = Girar(Izquierda)
+    assert(simplificar(entrada) == esperado)
+  }
+
+  test("simplificar (propia): elimina Avanzar(0) y elementos neutros intercalados") {
+    val entrada = Secuencia(List(Avanzar(2), Avanzar(0), Secuencia(Nil), Girar(Derecha)))
+    val esperado = Secuencia(List(Avanzar(2), Girar(Derecha)))
+    assert(simplificar(entrada) == esperado)
+  }
+
+  test("simplificar (propia): reduce movimientos opuestos anidados a punto fijo neutro") {
+    val entrada = Repetir(1, Secuencia(List(Avanzar(4), Avanzar(-4))))
+    val esperado = Secuencia(Nil)
+    assert(simplificar(entrada) == esperado)
+  }
+
 
 }
