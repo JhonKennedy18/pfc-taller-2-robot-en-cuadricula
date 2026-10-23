@@ -88,9 +88,9 @@ La función tiene un caso por cada alternativa de `Orden`:
 2. **`Girar(s)`**: la posición no cambia, solo `mira`, que se calcula con
    `girar` del punto 1.
 3. **`Repetir(veces, orden)`**:
-  - Si `veces <= 0`, devuelve el estado sin cambios.
-  - Si no, ejecuta la orden una vez y repite lo que falta con `veces - 1`.
-    Como `veces` baja en cada llamado, la recursión termina.
+    - Si `veces <= 0`, devuelve el estado sin cambios.
+    - Si no, ejecuta la orden una vez y repite lo que falta con `veces - 1`.
+      Como `veces` baja en cada llamado, la recursión termina.
 4. **`Secuencia(ordenes)`**: `foldLeft` ejecuta las órdenes de izquierda a
    derecha, y cada una parte del estado que dejó la anterior. Con la lista
    vacía devuelve el estado inicial.
@@ -146,6 +146,10 @@ flowchart LR
 | `ejecutar(inicial, Avanzar(-2))` | mira al norte, $y = 0 + (-2)$ | `(0, -2, Norte)` |
 | `ejecutar(inicial, Repetir(0, Avanzar(5)))` | `veces <= 0`, devuelve `e` | `(0, 0, Norte)` |
 | `ejecutar(inicial, Secuencia(Nil))` | `foldLeft` sin elementos devuelve `e` | `(0, 0, Norte)` |
+
+### Límite conocido: repeticiones muy grandes
+
+`ejecutar` hace un llamado recursivo por cada repetición de un `Repetir`, así que la pila crece con `veces`. Con los valores de las pruebas no hay problema, pero `ejecutar(inicial, Repetir(1000000, Avanzar(1)))` desborda la pila de la JVM (`StackOverflowError`, comprobado al ejecutarlo).
 
 ## Punto 3 — `cuantasBasicas` y `profundidad`
 
@@ -447,15 +451,22 @@ Comprobación desde `inicial`: ambas dan `(0, 0, Este)`.
 
 **Teorema.** Para toda orden $o$ y todo estado $e$:
 
-$
+$$
 \text{ejecutar}(e, \text{simplificar}(o)) = \text{ejecutar}(e, o)
-$
+$$
 
 **Demostración.** Basta ver que cada regla preserva `ejecutar`; después se procede por inducción estructural sobre $o$, porque `paso` solo reescribe subórdenes por otras equivalentes.
 
 * **Regla 1.** `Avanzar(0)` suma $0$ a una coordenada y deja `mira` igual, así que devuelve `e`. `Repetir(0, o)` devuelve `e` por el caso `veces <= 0`. `Secuencia(Nil)` devuelve `e` porque `foldLeft` sin elementos devuelve el valor inicial. Las tres son la identidad.
 * **Regla 2.** `Avanzar` no cambia `mira`, así que ambos avances ocurren en la misma dirección $d$. Con $(v_x, v_y)$ el vector unitario de $d$:
 
+$$
+\begin{aligned}
+\text{ejecutar}\bigl(\text{ejecutar}((x, y, d), \text{Avanzar}(a)),\, \text{Avanzar}(b)\bigr)
+&= (x + a\,v_x + b\,v_x,\; y + a\,v_y + b\,v_y,\; d) \\
+&= (x + (a+b)\,v_x,\; y + (a+b)\,v_y,\; d)
+\end{aligned}
+$$
 
 que es el resultado de `Avanzar(a + b)`.
 * **Regla 3.** `ejecutar(e, Repetir(1, o))` ejecuta `o` una vez y luego `Repetir(0, o)`, que devuelve el estado sin cambios. Es igual a `ejecutar(e, o)`.

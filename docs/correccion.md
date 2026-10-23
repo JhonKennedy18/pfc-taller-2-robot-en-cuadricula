@@ -408,12 +408,12 @@ $\mathcal{S}(o_i)$. $\square$
 * **R2.** `Avanzar` no cambia la dirección, así que ambos avances usan el mismo $d$:
 
 $
-  \begin{aligned}
-  \bigl(\mathcal{S}(\text{Avanzar}(b)) \circ \mathcal{S}(\text{Avanzar}(a))\bigr)(x, y, d)
-  &= \bigl(x + a\,v_x(d) + b\,v_x(d),\; y + a\,v_y(d) + b\,v_y(d),\; d\bigr) \\
-  &= \bigl(x + (a+b)\,v_x(d),\; y + (a+b)\,v_y(d),\; d\bigr) \\
-  &= \mathcal{S}(\text{Avanzar}(a+b))(x, y, d)
-  \end{aligned}
+\begin{aligned}
+\bigl(\mathcal{S}(\text{Avanzar}(b)) \circ \mathcal{S}(\text{Avanzar}(a))\bigr)(x, y, d)
+&= \bigl(x + a\,v_x(d) + b\,v_x(d),\; y + a\,v_y(d) + b\,v_y(d),\; d\bigr) \\
+&= \bigl(x + (a+b)\,v_x(d),\; y + (a+b)\,v_y(d),\; d\bigr) \\
+&= \mathcal{S}(\text{Avanzar}(a+b))(x, y, d)
+\end{aligned}
 $
 Por el Lema 1, la igualdad se mantiene con cualquier prefijo y sufijo en la lista.
 * **R3.** $\mathcal{S}(\text{Repetir}(1, o)) = \mathcal{S}(o)^1 = \mathcal{S}(o)$.
@@ -457,7 +457,7 @@ $
 **Paso 3: conclusión.** Por el teorema del Punto 2, `ejecutar` coincide con $\mathcal{S}$:
 
 $
-  \text{ejecutar}(e, \text{simplificar}(o)) = \mathcal{S}(\text{simplificar}(o))(e) = \mathcal{S}(o)(e) = \text{ejecutar}(e, o) \quad \blacksquare
+\text{ejecutar}(e, \text{simplificar}(o)) = \mathcal{S}(\text{simplificar}(o))(e) = \mathcal{S}(o)(e) = \text{ejecutar}(e, o) \quad \blacksquare
 $
 
 ### Terminación
